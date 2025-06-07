@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Memorama de Derivadas</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: #f0f0f0;
+    }
+    h1 { margin: 20px; }
+    #tablero {
+      display: grid;
+      grid-template-columns: repeat(4, 100px);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .carta {
+      width: 100px;
+      height: 100px;
+      background: #2e3a59;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      text-align: center;
+      border-radius: 8px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .descubierta {
+      background: #ffffff;
+      color: #000000;
+      border: 2px solid #2e3a59;
+    }
+    .completada {
+      background: #a2f3a2;
+      color: #000000;
+      cursor: default;
+    }
+  </style>
+</head>
+<body>
+  <h1>Memorama: Derivadas e Integrales</h1>
+  <div id="tablero"></div>
+  <script>
+    const cartasBase = [
+      ["Derivada de uana constante", "d/dx(c) = 0"],
+      ["Derivada de x^n", "d/dx(x^n) = nx^{n-1}"],
+      ["Integral de 1/x", "\u222B1/x dx = ln|x| + C"],
+      ["Derivada del seno", "d/dx(sin(x)) = cos(x)"],
+      ["Integral del coseno", "\u222Bcos(x) dx = sin(x) + C"],
+      ["Derivada de e^x", "d/dx(e^x) = e^x"],
+      ["Integral de e^x", "\u222Be^x dx = e^x + C"],
+      ["Derivada del logaritmo", "d/dx(ln(x)) = 1/x"]
+    ];
+
+    let cartas = [];
+    let primera = null;
+    let segunda = null;
+    let bloqueo = false;
+
+    function mezclar(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    function crearTablero() {
+      const tablero = document.getElementById("tablero");
+      tablero.innerHTML = "";
+
+      const pares = [];
+      cartasBase.forEach(([concepto, formula]) => {
+        pares.push({ texto: concepto, id: concepto });
+        pares.push({ texto: formula, id: concepto });
+      });
+
+      cartas = mezclar(pares);
+
+      cartas.forEach((cartaData, index) => {
+        const div = document.createElement("div");
+        div.classList.add("carta");
+        div.dataset.id = cartaData.id;
+        div.dataset.index = index;
+        div.textContent = "?";
+
+        div.addEventListener("click", () => voltearCarta(div, cartaData.texto));
+
+        tablero.appendChild(div);
+      });
+    }
+
+    function voltearCarta(carta, texto) {
+      if (bloqueo || carta.classList.contains("descubierta") || carta.classList.contains("completada")) return;
+
+      carta.textContent = texto;
+      carta.classList.add("descubierta");
+
+      if (!primera) {
+        primera = carta;
+      } else {
+        segunda = carta;
+        bloqueo = true;
+
+        if (primera.dataset.id === segunda.dataset.id) {
+          setTimeout(() => {
+            primera.classList.remove("descubierta");
+            segunda.classList.remove("descubierta");
+            primera.classList.add("completada");
+            segunda.classList.add("completada");
+            primera = null;
+            segunda = null;
+            bloqueo = false;
+          }, 500);
+        } else {
+          setTimeout(() => {
+            primera.textContent = "?";
+            segunda.textContent = "?";
+            primera.classList.remove("descubierta");
+            segunda.classList.remove("descubierta");
+            primera = null;
+            segunda = null;
+            bloqueo = false;
+          }, 1000);
+        }
+      }
+    }
+
+    crearTablero();
+  </script>
+</body>
+</html>
