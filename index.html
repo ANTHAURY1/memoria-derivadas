@@ -13,6 +13,12 @@
       background: #f0f0f0;
     }
     h1 { margin: 20px; }
+    #cronometro {
+      font-size: 18px;
+      margin-bottom: 15px;
+      font-weight: bold;
+      color: #2e3a59;
+    }
     #tablero {
       display: grid;
       grid-template-columns: repeat(4, 100px);
@@ -32,6 +38,22 @@
       border-radius: 8px;
       cursor: pointer;
       user-select: none;
+      padding: 5px;
+      overflow: hidden;       
+    }
+    .carta span {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      max-width: 90%;
+      max-height: 90%;
+      font-size: clamp(10px, 2vw, 14px);
+      line-height: 1.2;
+      word-wrap: break-word;
+    }
+    .carta:hover {
+      background: #3e4a69;
     }
     .descubierta {
       background: #ffffff;
@@ -43,27 +65,77 @@
       color: #000000;
       cursor: default;
     }
+
+    /* Ranking fijo en la esquina */
+    #ranking {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: white;
+      padding: 10px;
+      border-radius: 8px;
+      width: 200px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+    #ranking h2 {
+      margin: 0 0 10px 0;
+      font-size: 16px;
+      text-align: center;
+    }
+    #ranking ol {
+      margin: 0;
+      padding-left: 20px;
+    }
   </style>
 </head>
 <body>
+  <div id="ranking">
+    <h2>🏆 Ranking</h2>
+    <ol id="ranking-list"></ol>
+  </div>
+
   <h1>Memorama: Derivadas e Integrales</h1>
+  <div id="cronometro">Tiempo: 0s</div>
   <div id="tablero"></div>
+
   <script>
     const cartasBase = [
-      ["Derivada de uana constante", "d/dx(c) = 0"],
-      ["Derivada de x^n", "d/dx(x^n) = nx^{n-1}"],
-      ["Integral de 1/x", "\u222B1/x dx = ln|x| + C"],
-      ["Derivada del seno", "d/dx(sin(x)) = cos(x)"],
-      ["Integral del coseno", "\u222Bcos(x) dx = sin(x) + C"],
-      ["Derivada de e^x", "d/dx(e^x) = e^x"],
-      ["Integral de e^x", "\u222Be^x dx = e^x + C"],
-      ["Derivada del logaritmo", "d/dx(ln(x)) = 1/x"]
+      ["Derivada de una constante", "\\( 0 \\)"],
+      ["Derivada de una potencia", "\\( nx^{n-1} \\)"],
+      ["Integral de una función", "\\( \\ln|x| + C \\)"],
+      ["Derivada del seno", "\\( \\cos(x) \\)"],
+      ["Integral del coseno", "\\( \\sin(x) + C \\)"],
+      ["Derivada de un exponente", "\\( e^x \\)"],
+      ["Integral de un exponente", "\\( e^x + C \\)"],
+      ["Derivada del logaritmo", "\\( \\frac{1}{x} \\)"]
     ];
 
     let cartas = [];
     let primera = null;
     let segunda = null;
     let bloqueo = false;
+
+    // Cronómetro
+    let tiempo = 0;
+    let intervalo = null;
+    let juegoIniciado = false;
+
+    // Ranking
+    let ranking = JSON.parse(localStorage.getItem("ranking")) || [];
+
+    function iniciarCronometro() {
+      if (!juegoIniciado) {
+        juegoIniciado = true;
+        intervalo = setInterval(() => {
+          tiempo++;
+          document.getElementById("cronometro").textContent = `Tiempo: ${tiempo}s`;
+        }, 1000);
+      }
+    }
+
+    function detenerCronometro() {
+      clearInterval(intervalo);
+    }
 
     function mezclar(array) {
       for (let i = array.length - 1; i > 0; i--) {
@@ -90,9 +162,12 @@
         div.classList.add("carta");
         div.dataset.id = cartaData.id;
         div.dataset.index = index;
-        div.textContent = "?";
+        div.innerHTML = "<span>?</span>";
 
-        div.addEventListener("click", () => voltearCarta(div, cartaData.texto));
+        div.addEventListener("click", () => {
+          iniciarCronometro();
+          voltearCarta(div, cartaData.texto);
+        });
 
         tablero.appendChild(div);
       });
@@ -101,7 +176,11 @@
     function voltearCarta(carta, texto) {
       if (bloqueo || carta.classList.contains("descubierta") || carta.classList.contains("completada")) return;
 
-      carta.textContent = texto;
+      carta.innerHTML = "<span>" + texto + "</span>";
+      if (window.MathJax) {
+        MathJax.typesetPromise([carta]);
+      }
+
       carta.classList.add("descubierta");
 
       if (!primera) {
@@ -119,11 +198,12 @@
             primera = null;
             segunda = null;
             bloqueo = false;
+            checkVictoria();
           }, 500);
         } else {
           setTimeout(() => {
-            primera.textContent = "?";
-            segunda.textContent = "?";
+            primera.innerHTML = "<span>?</span>";
+            segunda.innerHTML = "<span>?</span>";
             primera.classList.remove("descubierta");
             segunda.classList.remove("descubierta");
             primera = null;
@@ -134,7 +214,39 @@
       }
     }
 
+    function checkVictoria() {
+      if (document.querySelectorAll(".completada").length === cartas.length) {
+        detenerCronometro();
+        setTimeout(() => {
+          const nombre = prompt("¡Ganaste! 🎉\nIngresa tu nombre:");
+          if (nombre) {
+            ranking.push({ nombre, tiempo });
+            ranking.sort((a, b) => a.tiempo - b.tiempo);
+            ranking = ranking.slice(0, 5); // top 5
+            localStorage.setItem("ranking", JSON.stringify(ranking));
+            actualizarRanking();
+          }
+          alert(`¡Ganaste en ${tiempo} segundos!`);
+        }, 300);
+      }
+    }
+
+    function actualizarRanking() {
+      const lista = document.getElementById("ranking-list");
+      lista.innerHTML = "";
+      ranking.forEach((jugador, i) => {
+        const li = document.createElement("li");
+        li.textContent = `${i + 1}. ${jugador.nombre} - ${jugador.tiempo}s`;
+        lista.appendChild(li);
+      });
+    }
+
     crearTablero();
+    actualizarRanking();
   </script>
+
+  <!-- MathJax -->
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 </body>
 </html>
